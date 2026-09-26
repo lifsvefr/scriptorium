@@ -1,0 +1,91 @@
+{
+  "id": "./",
+  "name": "Söguþræðir Scriptorium",
+  "short_name": "Söguþræðir",
+  "description": "Sheets of rag paper to write on, and a bookshelf to read from.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F2F5FB",
+  "theme_color": "#1E3464",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "share_target": {
+    "action": "./share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        {
+          "name": "files",
+          "accept": [
+            "text/markdown",
+            ".md",
+            ".markdown",
+            "text/plain",
+            ".txt",
+            "text/html",
+            ".html",
+            ".htm",
+            "application/epub+zip",
+            ".epub",
+            "application/zip",
+            "application/x-cbz",
+            "application/vnd.comicbook+zip",
+            ".cbz",
+            "application/pdf",
+            ".pdf",
+            "image/*"
+          ]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "text/markdown": [
+          ".md",
+          ".markdown"
+        ],
+        "text/plain": [
+          ".txt"
+        ],
+        "text/html": [
+          ".html",
+          ".htm"
+        ],
+        "application/epub+zip": [
+          ".epub"
+        ],
+        "application/vnd.comicbook+zip": [
+          ".cbz"
+        ],
+        "application/pdf": [
+          ".pdf"
+        ]
+      }
+    }
+  ]
+}
