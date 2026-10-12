@@ -1,7 +1,7 @@
 /* Söguþræðir service worker.
    Keeps the notebook working offline, and catches files shared to it from other apps.
    Only ever clears its own old caches, so sibling apps on the same site are left alone. */
-const CACHE = 'soguthraedir-v1';
+const CACHE = 'soguthraedir-v4';
 const SHARE = 'soguthraedir-share';
 
 self.addEventListener('install', e => {
