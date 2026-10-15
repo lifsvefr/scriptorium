@@ -43,7 +43,7 @@
   header .kicker{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--sunglow);font-family:'Alegreya SC',serif;text-shadow:1.5px 0 0 var(--headnavy),-1.5px 0 0 var(--headnavy),0 1.5px 0 var(--headnavy),0 -1.5px 0 var(--headnavy),1px 1px 0 var(--headnavy),-1px 1px 0 var(--headnavy),1px -1px 0 var(--headnavy),-1px -1px 0 var(--headnavy),0 0 8px var(--headnavy),0 0 16px var(--headnavy),0 0 26px var(--headnavy)}
   header h1{font-family:'Homemade Apple',cursive;font-weight:400;font-size:26px;line-height:1.5;margin-top:9px;text-shadow:2px 0 0 var(--headnavy),-2px 0 0 var(--headnavy),0 2px 0 var(--headnavy),0 -2px 0 var(--headnavy),1.4px 1.4px 0 var(--headnavy),-1.4px 1.4px 0 var(--headnavy),1.4px -1.4px 0 var(--headnavy),-1.4px -1.4px 0 var(--headnavy),0 0 10px var(--headnavy),0 0 20px var(--headnavy),0 0 32px var(--headnavy),0 0 44px var(--headnavy)}
   header .tag{font-family:'Winky Sans',sans-serif;font-size:12.5px;opacity:.9;margin-top:10px;text-shadow:1.5px 0 0 var(--headnavy),-1.5px 0 0 var(--headnavy),0 1.5px 0 var(--headnavy),0 -1.5px 0 var(--headnavy),1px 1px 0 var(--headnavy),-1px 1px 0 var(--headnavy),1px -1px 0 var(--headnavy),-1px -1px 0 var(--headnavy),0 0 8px var(--headnavy),0 0 16px var(--headnavy),0 0 26px var(--headnavy)}
-  .starfield{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+  .starfield{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;overflow:hidden;z-index:0}
   .starfield span{position:absolute;animation:twinkle var(--d,3s) ease-in-out infinite var(--delay,0s);font-size:var(--sz,.8rem);color:var(--col,#E8C766);text-shadow:0 0 6px var(--col,#E8C766);line-height:1}
   @keyframes twinkle{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:.85;transform:scale(1)}}
   header>*:not(.starfield):not(.htools){position:relative;z-index:1}
@@ -92,7 +92,7 @@
   .fab:active{box-shadow:0 0 20px rgba(232,199,102,.55)}
 
   /* ===== Editor screen ===== */
-  #editor{position:fixed;inset:0;background:var(--field);z-index:40;display:none;flex-direction:column}
+  #editor{position:fixed;top:0;right:0;bottom:0;left:0;background:var(--field);z-index:40;display:none;flex-direction:column}
   #editor.show{display:flex}
   .edbar{display:flex;align-items:center;gap:6px;padding:8px 10px;padding-top:max(8px, env(safe-area-inset-top));background:var(--card);border-bottom:1px solid var(--mist);flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .edbar::-webkit-scrollbar{display:none}
@@ -148,11 +148,11 @@
       repeating-linear-gradient(90deg, rgba(var(--lineR),var(--chainA)) 0 1px, transparent 1px 3px),
       linear-gradient(180deg,var(--sheet1),var(--sheet2))}
   .ragpaper.pat-plain::before{display:none}
-  .ragpaper::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:var(--noiseO);mix-blend-mode:multiply;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0.52  0 0 0 0 0.44  0 0 0 0 0.30  0 0 0 0.10 0'/></filter><rect width='140' height='140' filter='url(%23p)'/></svg>")}
+  .ragpaper::before{content:'';position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;opacity:var(--noiseO);mix-blend-mode:multiply;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0.52  0 0 0 0 0.44  0 0 0 0 0.30  0 0 0 0.10 0'/></filter><rect width='140' height='140' filter='url(%23p)'/></svg>")}
   body.aurora .ragpaper::before{mix-blend-mode:screen}
   #ed-body,#ed-read{position:relative;z-index:1}
   #ragmain{position:relative}
-  #edink{position:absolute;inset:0;padding:14px 16px 40vh;overflow:hidden;white-space:pre-wrap;word-wrap:break-word;pointer-events:none;line-height:1.75;font-family:'Caudex',serif;font-size:16px;z-index:0;display:none}
+  #edink{position:absolute;top:0;right:0;bottom:0;left:0;padding:14px 16px 40vh;overflow:hidden;white-space:pre-wrap;word-wrap:break-word;pointer-events:none;line-height:1.75;font-family:'Caudex',serif;font-size:16px;z-index:0;display:none}
   body.inkview #edink{display:block}
   #editor.reading #edink{display:none!important}
   body.hand-pen #edink{font-family:'Winky Rough','Winky Sans',cursive;line-height:1.85}
@@ -187,9 +187,9 @@
   .outl.l3{padding-left:38px;font-weight:400;font-size:13.5px;color:var(--mut)}
 
   /* ===== Sheets / overlays ===== */
-  .overlay{position:fixed;inset:0;background:rgba(10,16,34,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .overlay{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(10,16,34,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
   .overlay.show{display:flex}
-  .sheet{background:var(--card);border-radius:20px;padding:20px 18px 22px;width:100%;max-width:560px;max-height:min(86vh,calc(100dvh - 32px));overflow-y:auto;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  .sheet{background:var(--card);border-radius:20px;padding:20px 18px 22px;width:100%;max-width:560px;max-height:86vh;max-height:min(86vh,calc(100dvh - 32px));overflow-y:auto;box-shadow:0 18px 50px rgba(0,0,0,.35)}
   body.aurora .sheet{background:#151F36;border-top:1px solid rgba(201,162,39,.5)}
   .sheet h2{font-size:17px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .sheet h2::after{content:'';flex-basis:100%;height:2px;background:linear-gradient(90deg,var(--sun) 0,rgba(201,162,39,.25) 45%,transparent 75%);border-radius:2px;margin-top:1px}
@@ -346,7 +346,7 @@
 
 
   /* ===== The tour: same look as Lífsteinn's (a dark bubble, a gold ring, Back / Next / Skip) ===== */
-  #coach{position:fixed;inset:0;z-index:900;display:none;background:transparent;transition:background .4s}
+  #coach{position:fixed;top:0;right:0;bottom:0;left:0;z-index:900;display:none;background:transparent;transition:background .4s}
   #coach.show{display:block}
   #coach.dim{background:rgba(5,6,10,.72)}
   #coachring{position:fixed;display:none;border-radius:18px;box-shadow:0 0 0 2px #EAD9B0,0 0 0 9999px rgba(5,6,10,.5);pointer-events:none;transition:all .3s;z-index:900}
@@ -385,7 +385,7 @@
   }
 
   /* ===== Aurora: starfield behind the home screen ===== */
-  .bodystars{position:fixed;inset:0;display:none;pointer-events:none;z-index:0;opacity:.85}
+  .bodystars{position:fixed;top:0;right:0;bottom:0;left:0;display:none;pointer-events:none;z-index:0;opacity:.85}
   body.aurora .bodystars{display:block}
   main{position:relative;z-index:1}
 
@@ -403,7 +403,7 @@
   @media (min-width:700px){.shelf{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}}
   .book{background:var(--card);border:1px solid var(--mist);border-radius:16px;overflow:hidden;cursor:pointer;box-shadow:0 1px 4px rgba(46,42,69,.07);display:flex;flex-direction:column}
   body.aurora .book{background:rgba(21,31,54,.85);border-color:rgba(201,162,39,.35);box-shadow:0 0 12px rgba(232,199,102,.08)}
-  .book .cov{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:linear-gradient(160deg,#1E3464,#3D5CA8)}
+  .book .cov{width:100%;aspect-ratio:3/4;height:auto;object-fit:cover;display:block;background:linear-gradient(160deg,#1E3464,#3D5CA8)}
   .book .bt{font-family:'Caudex',serif;font-weight:700;font-size:14px;line-height:1.3;padding:9px 10px 4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
   .book .bm{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--mut);padding:0 10px 8px}
   .book .bm .sp{flex:1}
@@ -415,7 +415,7 @@
   .book{position:relative}
   .book .del{border:none;background:none;color:var(--mut);cursor:pointer;font-size:12px;padding:2px 4px}
   /* ===== Reader ===== */
-  #my-reader{position:fixed;inset:0;background:#05080F;z-index:40;display:none;flex-direction:column}
+  #my-reader{position:fixed;top:0;right:0;bottom:0;left:0;background:#05080F;z-index:40;display:none;flex-direction:column}
   #my-reader.show{display:flex}
   .rbar{display:flex;align-items:center;gap:8px;padding:8px 12px;padding-top:max(8px, env(safe-area-inset-top));background:rgba(10,16,28,.92);color:#E7ECF8;font-family:'Alegreya SC',serif;font-weight:700;border-bottom:1px solid rgba(201,162,39,.35);z-index:2}
   .rbar .back{border:none;background:none;font-size:20px;cursor:pointer;padding:2px 8px;color:#E8C766}
@@ -878,7 +878,7 @@
   #seg-aurora button:nth-child(n+3){border-bottom:none}
   body.eink #seg-aurora button{border-color:#000}
   /* ===== Compare two sheets ===== */
-  #compare{position:fixed;inset:0;z-index:46;display:none;flex-direction:column;background:var(--field);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  #compare{position:fixed;top:0;right:0;bottom:0;left:0;z-index:46;display:none;flex-direction:column;background:var(--field);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
   #compare.show{display:flex}
   .cmpbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--mist);background:var(--card)}
   .cmpbar .cmptitle{flex:1;font-family:'Alegreya SC',serif;font-weight:700;font-size:16px}
@@ -1351,7 +1351,7 @@
     <div class="rowbtns">
       <button class="mini" id="dt-default">Make these the defaults</button>
       <span style="flex:1"></span>
-      <button class="mini danger" id="dt-delete">♻ Pulp</button>
+      <button class="mini danger" id="dt-delete">♻ Pulp — delete sheet</button>
     </div>
     <div class="rowbtns" style="margin-top:8px">
       <button class="mini" id="dt-tb"></button>
@@ -1410,9 +1410,7 @@
     <div class="lbl" id="lbl-pagew">Page width</div>
     <div class="pwbox"><input type="range" id="set-pagew" min="560" max="1800" step="20" aria-label="Page width"><span id="set-pagewv"></span></div>
     <div class="gentle">How wide a sheet may grow on big screens like laptops. Your phone stays the same.</div>
-    <div class="lbl" id="lbl-words">Wording</div>
-    <div class="seg viewseg" id="seg-words"><button data-v="0">✨ Hverfolk</button><button data-v="1">📝 Plain</button></div>
-    <div class="gentle">Hverfolk keeps the Hverlands' own words, like pulp, vat and bind. Plain says exactly what each button does.</div>
+    <div id="seg-words" hidden></div>
     <div class="lbl">Defaults for new sheets</div>
     <div class="gentle" style="margin:2px 0 8px;text-align:left">Everything below shapes each freshly cut sheet. Open ⚙️ Settings on a sheet to change just that one.</div>
     <div class="paperrow" style="margin-top:0"><span style="width:auto">Ink</span></div>
@@ -1463,7 +1461,7 @@
     </div>
     <div class="gentle" style="text-align:left;margin-top:8px"><b>Everything</b> is one .zip with your sheets, their images, every book, and your settings. <b>Sheets only</b> is a small .json without the books. Restoring asks first: combine it with what's here (nothing is deleted), or replace your sheets with it.</div>
     <div class="gentle" id="bk-last" style="text-align:left"></div>
-    <div class="rowbtns" style="margin-top:8px"><button class="mini danger" id="bk-wipe">♻ Pulp every sheet</button></div>
+    <div class="rowbtns" style="margin-top:8px"><button class="mini danger" id="bk-wipe">♻ Pulp every sheet — delete all</button></div>
     <div class="lbl">Sounds</div><label class="swrow"><span>Soft chimes when you pin, tick, finish or rearrange things</span><input type="checkbox" id="soundchk"></label>
     <div class="rowbtns" style="justify-content:center;margin-top:14px"><button class="mini" id="show-guide">✒️ How the pen works</button><button class="mini" id="show-welcome">🧭 Show the tour again</button></div>
     <div class="gentle" id="storageinfo"></div>
@@ -1476,8 +1474,8 @@
     <div class="smhead"><span class="smt" id="cm-title"></span></div>
     <div class="sminfo" id="cm-info"></div>
     <button class="smrow" id="cm-rename"><span class="ic">✎</span> Rename collection</button>
-    <button class="smrow" id="cm-release"><span class="ic" data-g="basket">🧺</span> Release sheets to Loose</button>
-    <button class="smrow danger" id="cm-pulp"><span class="ic">♻</span> Pulp collection & all its sheets</button>
+    <button class="smrow" id="cm-release"><span class="ic" data-g="basket">🧺</span> Release sheets — remove the collection, keep its sheets</button>
+    <button class="smrow danger" id="cm-pulp"><span class="ic">♻</span> Pulp collection — delete it and all its sheets</button>
     <button class="primary smclose" data-closeov>Close</button>
   </div>
 </div>
@@ -1496,7 +1494,7 @@
       <button class="smrow" id="sm-md"><span class="ic">⬇</span> .md</button>
       <button class="smrow" id="sm-html"><span class="ic">⬇</span> .html</button>
     </div>
-    <button class="smrow danger" id="sm-pulp"><span class="ic">♻</span> Pulp</button>
+    <button class="smrow danger" id="sm-pulp"><span class="ic">♻</span> Pulp — delete sheet</button>
     <button class="primary smclose" data-closeov>Close</button>
   </div>
 </div>
@@ -1741,7 +1739,7 @@
     <button class="smrow" id="my-bm-ren"><span class="ic">✎</span> Rename</button>
     <button class="smrow" id="my-bm-dl"><span class="ic">⬇</span> Download</button>
     <button class="smrow" id="my-bm-ocr"><span class="ic">🔍</span> Read the text in (for scanned pages)</button>
-    <button class="smrow danger" id="my-bm-del"><span class="ic">✕</span> Remove from shelf</button>
+    <button class="smrow danger" id="my-bm-del"><span class="ic">✕</span> Remove from shelf — delete book</button>
     <button class="primary smclose" data-closeov>Close</button>
   </div>
 </div>
@@ -2056,6 +2054,7 @@ let cur=null, activeColl='all', queryTxt='', shown=60, searchRun=0, prevBody='';
   /* ask the browser to keep this app's storage even when the device runs low on space */
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});}catch(e){}
   try{if(!lookAdopt(localStorage.getItem('hverlands-look'))&&!localStorage.getItem('hverlands-look'))lookShare();}catch(e){scrWarn('the shared look',e);}
+  D.set.plain=false; /* the Wording setting is gone: everyone has the Hverfolk words, with plain hints on anything that deletes */
   applySettings(); buildStars(); renderChips(); renderList(); setView(D.set.view||'sheets',true); applyGlyphs(); applyWording();
   if(window.__bootDone)window.__bootDone();
   probeGlyphs();
@@ -2745,7 +2744,7 @@ $('cm-pulp').onclick=async()=>{
   const c=D.colls.find(x=>x.id===cmId); if(!c)return;
   closeOv('ov-collmenu');
   const mine=D.notes.filter(n=>n.coll===cmId);
-  const y=await ask({title:'♻ Pulp the whole collection?',msg:'"'+c.name+'" and ALL '+mine.length+' of its sheets go back to the vat together. Their words cannot be recovered once pulped.',ok:'Pulp '+mine.length+' sheets',danger:true});
+  const y=await ask({title:'♻ Pulp the whole collection?',msg:'"'+c.name+'" and ALL '+mine.length+' of its sheets go back to the vat together. Their words cannot be recovered once pulped. This deletes them for good.',ok:'Pulp '+mine.length+' sheets',danger:true});
   if(!y)return;
   for(const n of mine){
     for(const p of (n.plates||[])){await store.del(KEY+':plate:'+n.id+':'+p.id);plateCache.delete(n.id+':'+p.id);}
@@ -4965,7 +4964,7 @@ $('dt-exportpdf').onclick=async()=>{
 };
 async function pulpNote(id){
   const n=D.notes.find(x=>x.id===id); if(!n)return false;
-  const y=await ask({title:'♻ Pulp this sheet?',msg:'"'+(n.t||'Untitled sheet')+'" goes back to the vat to become fresh paper. Its words cannot be recovered once pulped.',ok:'Pulp it',danger:true});
+  const y=await ask({title:'♻ Pulp this sheet?',msg:'"'+(n.t||'Untitled sheet')+'" goes back to the vat to become fresh paper. Its words cannot be recovered once pulped. This deletes it for good.',ok:'Pulp it',danger:true});
   if(!y)return false;
   for(const p of (n.plates||[])){await store.del(KEY+':plate:'+id+':'+p.id);plateCache.delete(id+':'+p.id);}
   D.notes=D.notes.filter(x=>x.id!==id);bodyCache.delete(id);
@@ -6024,7 +6023,6 @@ const TOURS={
     {text:'✒️ New sheet starts a fresh page. It\'s also the front door for files: Word, ebooks, text files, comics and PDFs all find their own place.',ring:()=>rectOf('#fab')},
     {text:'⚙️ opens Settings. Let\'s look inside.',ring:()=>rectOf('#btn-settings')},
     setStop(['lbl-sky','colbtn'],'Modes change the whole look, and Lífsteinn follows the same mode. App text and Colors are shared with Lífsteinn too.'),
-    setStop(['lbl-words','seg-words'],'Wording: the Hverfolk\'s own words, or plain ones that say exactly what each button does.'),
     setStop(['definkgrid','panel-def'],'Defaults for new sheets: the ink, the hand and the paper every new sheet starts with.'),
     setStop(['sync-offbox','bk-last'],'Your sheets live in this browser. Save a backup now and then, or sync them through your own Google Drive.'),
     {text:'That\'s the tour. You can see it again any time from Settings → Show the tour again.</p><p class="coachend">Happy writing. ✒️',enter:()=>closeOv('ov-set'),last:1}
@@ -6599,7 +6597,7 @@ function renderShelf(){
 
 async function removeBook(id){
   const b=BOOKS.find(x=>x.id===id); if(!b)return;
-  if(await ask('📚 Remove "'+b.title+'"?','The book leaves the shelf and its pages are cleared from the chest. The original file on your device is untouched.','Remove')){
+  if(await ask('📚 Remove "'+b.title+'"?','The book leaves the shelf and its pages are cleared from the chest, for good. The original file on your device is untouched.','Remove')){
     if(b.type==='pdf')await store.del('pdf:'+b.id);
     for(let i=0;i<b.pages;i++){await store.del('page:'+b.id+':'+i);await store.del('text:'+b.id+':'+i);}
     await store.del('fulltext:'+b.id);ftCache.delete(b.id);
