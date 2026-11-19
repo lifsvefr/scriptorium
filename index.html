@@ -2521,7 +2521,7 @@ const PLAIN_TEXT=[
   [/Sheet returned to the vat ♻/,'Sheet deleted'],
   [/Binding "(.+)" for travel…/,'Preparing "$1" for download…'],
   [/" bound — (\d+) pages 🧵/,'" created — $1 pages'],
-  [/pressed onto one sheet/,'imported as one sheet'],[/ rewoven$/,' updated'],
+  [/pressed onto one sheet/,'imported as one sheet'],[/pressed into (\d+) sheets/,'imported as $1 sheets'],[/ rewoven$/,' updated'],
   [/" shelved — /,'" added to the bookshelf — '],[/^At the vat: /,'Importing: '],
   [/^Binding…/,'Combining…'],[/Could not bind those images/,'Couldn\u2019t combine those images'],
   [/see it bloom in Read view/,'you\u2019ll see it in reading mode'],
@@ -3436,6 +3436,7 @@ async function openNote(id,isNew){
   $('ed-back').title=navStack.length?'Back to the previous sheet':'Back to the shelf';
   syncFmtbar();
   renderInkView();
+  wcCache={len:-1,n:0};
   undoStack=[]; redoStack=[]; updUndoBtn();
   closeFind();
   applyInk(); applyPaper(cur.pp); applyType(); syncEditorChrome(); updateWC();
@@ -3464,9 +3465,16 @@ function syncEditorChrome(){
   $('ed-infoline').innerHTML='<span class="inkdot" style="background:'+ink.c+'"></span> '+esc(ink.n)+' · '+esc(collName(cur.coll))+(cur.tags.length?(' · '+esc(cur.tags.join(', '))):'');
   $('ed-dates').textContent='begun '+fmtDate(cur.c);
 }
-let wcMode=0,wcRaf=false;
+let wcMode=0,wcRaf=false,wcCache={len:-1,n:0};
+/* long sheets: recounting every word on every keystroke made typing lag, so their total
+   refreshes when the sheet saves (a moment after you pause) */
+function totalWords(v){
+  if(v.length<60000)return words(v);
+  if(wcCache.len!==v.length&&wcCache.len<0)wcCache={len:v.length,n:words(v)};
+  return wcCache.n;
+}
 function updateWC(){
-  const ta=$('ed-body'), total=words(ta.value);
+  const ta=$('ed-body'), total=totalWords(ta.value);
   const s=ta.selectionStart,e=ta.selectionEnd;
   if(document.activeElement===ta&&e>s){
     $('ed-wc').textContent=words(ta.value.slice(s,e))+' of '+total+' words';
@@ -3493,6 +3501,7 @@ async function flushSave(){
   if(!cur||!dirty)return; dirty=false;
   const b=$('ed-body').value;
   cur.t=$('ed-title').value.trim(); cur.u=Date.now(); cur.w=words(b); cur.ex=excerpt(b);
+  wcCache={len:b.length,n:cur.w};
   bodyCache.set(cur.id,b);
   await store.set(KEY+':body:'+cur.id,b); saveIdx();
   try{const r=JSON.parse(localStorage.getItem('scr-rescue')||'null');if(r&&r.id===cur.id&&r.b===b)localStorage.removeItem('scr-rescue');}catch(e){}
@@ -5238,49 +5247,66 @@ async function importEpub(f){
     parsed=await parseEpub(zip,f.name.replace(/\.epub$/i,''));
   }catch(e){toast('The vat could not take "'+f.name+'" — is it a healthy .epub?');return 0;}
   if(!parsed.chapters.length){toast('"'+f.name+'" had no readable chapters');return 0;}
-  const nid=uid();
-  let body='',runs=[],hls=[],plates=[],chN=0;
-  for(let i=0;i<parsed.chapters.length;i++){
-    toast('At the vat: "'+parsed.title.slice(0,24)+'" — '+(i+1)+' / '+parsed.chapters.length);
-    const ch=parsed.chapters[i];
-    let html;
-    try{html=await epubInlineImages(zip,ch.path,ch.html);}catch(e){html=ch.html;}
-    const conv=htmlToSheet(html,'');
-    const plain=conv.text.replace(/\[(?:plate|image):[a-z0-9]+\]/g,'').trim();
-    const hasPics=(conv.plates&&conv.plates.length);
-    if(plain.length<40&&!hasPics)continue;   // truly empty pages only
-    chN++;
-    const title=(conv.title&&conv.title.trim().length&&conv.title.length<120)?conv.title.trim():('Chapter '+chN);
-    const head='# '+title+'\n\n';
-    const base=body.length+head.length;
-    for(const r of conv.runs)runs.push({i:r.i+base,k:r.k});
-    for(const h of conv.hls)hls.push({s:h.s+base,e:h.e+base,k:h.k});
-    for(const p of (conv.plates||[]))plates.push(p);
-    body+=head+conv.text+'\n\n';
+  /* each chapter becomes its own sheet, gathered in a collection named after the book.
+     (One sheet holding a whole book was too heavy to open or type in on a phone.) */
+  const book=parsed.title.slice(0,120);
+  const chs=[];
+  const tk=window.busy?busy('At the vat: "'+book.slice(0,24)+'"…'):0;
+  try{
+    for(let i=0;i<parsed.chapters.length;i++){
+      if(window.busy)busy('At the vat: "'+book.slice(0,24)+'" — chapter '+(i+1)+' / '+parsed.chapters.length);
+      await new Promise(r=>setTimeout(r,0));  /* let the screen breathe between chapters */
+      const ch=parsed.chapters[i];
+      let html;
+      try{html=await epubInlineImages(zip,ch.path,ch.html);}catch(e){html=ch.html;}
+      const conv=htmlToSheet(html,'');
+      const plain=conv.text.replace(/\[(?:plate|image):[a-z0-9]+\]/g,'').trim();
+      const hasPics=(conv.plates&&conv.plates.length);
+      if(plain.length<40&&!hasPics)continue;   // truly empty pages only
+      const title=(conv.title&&conv.title.trim().length&&conv.title.length<120)?conv.title.trim():('Chapter '+(chs.length+1));
+      chs.push({title,text:conv.text,runs:conv.runs,hls:conv.hls,plates:conv.plates||[]});
+    }
+  }finally{if(window.unbusy)unbusy(tk);}
+  if(!chs.length){toast('"'+book+'" had no readable chapters');return 0;}
+  /* titles must be unique, so [[links]] between chapters always find the right one */
+  const taken=new Set(D.notes.map(n=>(n.t||'').trim().toLowerCase()));
+  for(const c of chs){
+    let t=c.title;
+    if(taken.has(t.toLowerCase()))t=book+' — '+c.title;
+    for(let k=2;taken.has(t.toLowerCase());k++)t=book+' — '+c.title+' ('+k+')';
+    taken.add(t.toLowerCase());c.title=t;
   }
-  if(!chN){toast('"'+parsed.title+'" had no readable chapters');return 0;}
-  body=body.replace(/\n+$/,'');
   if(parsed.cover){
-    /* the cover goes first: on the first page, and on the sheet's picture tile */
-    const pid='cv'+Math.random().toString(36).slice(2,8);
-    const head='[image:'+pid+']\n\n';
-    runs=runs.map(r=>({i:r.i+head.length,k:r.k}));
-    hls=hls.map(h=>({s:h.s+head.length,e:h.e+head.length,k:h.k}));
-    body=head+body;
-    plates.unshift({id:pid,url:parsed.cover});
+    /* the cover goes first: on the first chapter's page, and on its picture tile */
+    const c=chs[0],pid='cv'+Math.random().toString(36).slice(2,8),head='[image:'+pid+']\n\n';
+    c.runs=c.runs.map(r=>({i:r.i+head.length,k:r.k}));
+    c.hls=c.hls.map(h=>({s:h.s+head.length,e:h.e+head.length,k:h.k}));
+    c.text=head+c.text;c.plates.unshift({id:pid,url:parsed.cover});
   }
-  const n={id:nid,t:parsed.title.slice(0,120),coll:(activeColl!=='all'&&activeColl!=='loose')?activeColl:'',tags:[],
-    ink:D.set.ink||'deepsapphire',pin:0,c:Date.now(),u:Date.now(),
-    w:words(body),ex:excerpt(body),sp:0,rp:0,rm:1,
-    pp:Object.assign({},D.set.pp||DEF_PP),fs:D.set.fs,hand:D.set.hand,
-    runs:runs,hls:hls,plates:plates.map(p=>({id:p.id}))};
-  D.notes.push(n);bodyCache.set(nid,body);
-  await store.set(KEY+':body:'+nid,body);
-  for(const p of plates){await store.set(KEY+':plate:'+nid+':'+p.id,p.url);plateCache.set(nid+':'+p.id,p.url);}
+  const coll={id:uid(),name:book,ic:'📖'};D.colls.push(coll);
+  const now=Date.now();
+  for(let i=0;i<chs.length;i++){
+    const c=chs[i];
+    /* a quiet way on to the next and previous chapter, at the foot of each */
+    const nav=[];
+    if(i>0)nav.push('[['+chs[i-1].title+'|‹ '+chs[i-1].title+']]');
+    if(i<chs.length-1)nav.push('[['+chs[i+1].title+'|'+chs[i+1].title+' ›]]');
+    const body=c.text.replace(/\n+$/,'')+(nav.length?'\n\n---\n\n'+nav.join(' · '):'');
+    const n={id:uid(),t:c.title,coll:coll.id,tags:[],
+      ink:D.set.ink||'deepsapphire',pin:0,c:now,u:now-i,  /* chapter 1 sorts first */
+      w:words(body),ex:excerpt(body),sp:0,rp:0,rm:1,
+      pp:Object.assign({},D.set.pp||DEF_PP),fs:D.set.fs,hand:D.set.hand,
+      runs:c.runs,hls:c.hls,plates:c.plates.map(p=>({id:p.id}))};
+    D.notes.push(n);bodyCache.set(n.id,body);
+    await store.set(KEY+':body:'+n.id,body);
+    for(const p of c.plates){await store.set(KEY+':plate:'+n.id+':'+p.id,p.url);plateCache.set(n.id+':'+p.id,p.url);}
+  }
+  activeColl=coll.id;renderChips();
   saveIdx();
-  toast('"'+parsed.title.slice(0,32)+'" pressed onto one sheet — '+chN+' chapters as Threads 📖');
-  return 1;
+  epubMsg='"'+book.slice(0,32)+'" pressed into '+chs.length+' sheets — one for each chapter, in its own collection 📖';
+  return chs.length;
 }
+let epubMsg='';
 $('im-md').onclick=()=>$('im-mdfile').click();
 $('im-mdfile').addEventListener('change',async e=>{
   const files=[...e.target.files]; e.target.value='';
@@ -5314,7 +5340,8 @@ async function importSheetFiles(files){
     }catch(err){console.error(err);toast('Could not read “'+f.name+'”');await new Promise(r=>setTimeout(r,1400));}
   }
   saveIdx();renderList();
-  if(count)toast('Wove '+count+' sheet'+(count===1?'':'s')+' in ✨');
+  if(count)toast(epubMsg&&files.length===1?epubMsg:'Wove '+count+' sheet'+(count===1?'':'s')+' in ✨');
+  epubMsg='';
 }
 
 /* ===== Sync through the user's own Google Drive (a hidden app folder) ===== */
