@@ -6337,7 +6337,7 @@ async function restoreSheets(j,mode){
   if(replace){
     const keep=new Set((j.idx.notes||[]).map(n=>n.id));
     for(const n of D.notes.filter(x=>!keep.has(x.id))){
-      for(const p of (n.plates||[])){await store.del(KEY+':plate:'+n.id+':'+p.id);plateCache.delete(n.id+':'+p.id);}
+      for(const p of (n.plates||[])){await store.del(KEY+':plate:'+n.id+':'+p.id);if(p.draw)await store.del(KEY+':draw:'+n.id+':'+p.id);plateCache.delete(n.id+':'+p.id);}
       bodyCache.delete(n.id);await store.del(KEY+':body:'+n.id);removed++;
     }
     D.notes=D.notes.filter(x=>keep.has(x.id));
