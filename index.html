@@ -2037,6 +2037,7 @@ let cur=null, activeColl='all', queryTxt='', shown=60, searchRun=0, prevBody='';
   ];
   {const tl=TAGS_BY[theme()];$('htag').textContent=tl[Math.floor(Math.random()*tl.length)];}
   D.fonts=D.fonts||[];
+  D.notes=(Array.isArray(D.notes)?D.notes:[]).filter(n=>n&&n.id).map(normNote);D.colls=Array.isArray(D.colls)?D.colls:[];
   syncUI();
   /* fold back any typing that was cut off by a refresh or a closed tab */
   try{
@@ -2064,6 +2065,15 @@ let cur=null, activeColl='all', queryTxt='', shown=60, searchRun=0, prevBody='';
     setTimeout(()=>toast('It has been a while — weave a backup in Settings 🧺'),1600);
 })();
 
+/* a sheet record missing a field (old backups, older app versions) must never break the list */
+function normNote(n){
+  if(typeof n.t!=='string')n.t=n.t==null?'':String(n.t);
+  if(!Array.isArray(n.tags))n.tags=[];
+  if(typeof n.w!=='number')n.w=0;
+  if(typeof n.u!=='number')n.u=+n.u||0;
+  if(typeof n.c!=='number')n.c=+n.c||n.u;
+  return n;
+}
 function saveIdx(){ store.set(KEY+':idx',JSON.stringify(D)); syncShelfTabs(); if(window.syncSoon)syncSoon(); }
 let idxT=null; function queueIdx(){clearTimeout(idxT);idxT=setTimeout(saveIdx,800);}
 
@@ -2511,7 +2521,7 @@ const PLAIN_TEXT=[
   [/Sheet returned to the vat ♻/,'Sheet deleted'],
   [/Binding "(.+)" for travel…/,'Preparing "$1" for download…'],
   [/" bound — (\d+) pages 🧵/,'" created — $1 pages'],
-  [/pressed onto one sheet/,'imported as one sheet'],[/ rewoven$/,' updated'],
+  [/pressed onto one sheet/,'imported as one sheet'],[/pressed into (\d+) sheets/,'imported as $1 sheets'],[/ rewoven$/,' updated'],
   [/" shelved — /,'" added to the bookshelf — '],[/^At the vat: /,'Importing: '],
   [/^Binding…/,'Combining…'],[/Could not bind those images/,'Couldn\u2019t combine those images'],
   [/see it bloom in Read view/,'you\u2019ll see it in reading mode'],
@@ -2660,7 +2670,7 @@ $('editor').addEventListener('keydown',e=>{
   else if((e.ctrlKey||e.metaKey)&&((e.shiftKey&&e.key.toLowerCase()==='z')||e.key.toLowerCase()==='y')){e.preventDefault();redo();}
 });
 document.addEventListener('keydown',e=>{
-  if($('editor').classList.contains('show')&&$('editor').classList.contains('reading')&&!document.querySelector('.overlay.show')&&!/INPUT|TEXTAREA/.test((e.target||{}).tagName||'')){
+  if($('editor').classList.contains('show')&&$('editor').classList.contains('reading')&&!$('my-reader').classList.contains('show')&&!document.querySelector('.overlay.show')&&!/INPUT|TEXTAREA/.test((e.target||{}).tagName||'')){
     if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();rdNext();return;}
     if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();rdPrev();return;}
   }
@@ -2747,7 +2757,7 @@ $('cm-pulp').onclick=async()=>{
   const y=await ask({title:'♻ Pulp the whole collection?',msg:'"'+c.name+'" and ALL '+mine.length+' of its sheets go back to the vat together. Their words cannot be recovered once pulped. This deletes them for good.',ok:'Pulp '+mine.length+' sheets',danger:true});
   if(!y)return;
   for(const n of mine){
-    for(const p of (n.plates||[])){await store.del(KEY+':plate:'+n.id+':'+p.id);plateCache.delete(n.id+':'+p.id);}
+    for(const p of (n.plates||[])){await store.del(KEY+':plate:'+n.id+':'+p.id);if(p.draw)await store.del(KEY+':draw:'+n.id+':'+p.id);plateCache.delete(n.id+':'+p.id);}
     bodyCache.delete(n.id);
     await store.del(KEY+':body:'+n.id);
   }
@@ -3295,7 +3305,7 @@ $('bk-wipe').onclick=async()=>{
   const y2=await ask({title:'♻ Truly certain?',msg:'Export anything you love first (long-press a sheet → .html keeps its colors). Last chance.',ok:'Pulp all '+n,danger:true});
   if(!y2)return;
   for(const note of D.notes){
-    for(const p of (note.plates||[])){await store.del(KEY+':plate:'+note.id+':'+p.id);}
+    for(const p of (note.plates||[])){await store.del(KEY+':plate:'+note.id+':'+p.id);if(p.draw)await store.del(KEY+':draw:'+note.id+':'+p.id);}
     await store.del(KEY+':body:'+note.id);
   }
   plateCache.clear();bodyCache.clear();
@@ -3403,10 +3413,13 @@ $('new-import').onclick=()=>{
   closeOv('ov-new');
   pickAny();
 };
+let openSeq=0;
 async function openNote(id,isNew){
+  const seq=++openSeq;
   cur=D.notes.find(n=>n.id===id); if(!cur)return;
   let b=bodyCache.get(id);
-  if(b==null){b=await store.get(KEY+':body:'+id)||'';bodyCache.set(id,b);}
+  if(b==null){b=await store.get(KEY+':body:'+id)||'';if(!bodyCache.has(id))bodyCache.set(id,b);else b=bodyCache.get(id);}
+  if(seq!==openSeq)return;  /* a later open won the race */
   if(INKTOKEN.test(b)||HLSPAN.test(b)){ // old bracket markup → invisible runs
     INKTOKEN.lastIndex=0;HLSPAN.lastIndex=0;
     const mg=migrateMarkup(b);
@@ -3423,6 +3436,7 @@ async function openNote(id,isNew){
   $('ed-back').title=navStack.length?'Back to the previous sheet':'Back to the shelf';
   syncFmtbar();
   renderInkView();
+  wcCache={len:-1,n:0};
   undoStack=[]; redoStack=[]; updUndoBtn();
   closeFind();
   applyInk(); applyPaper(cur.pp); applyType(); syncEditorChrome(); updateWC();
@@ -3451,9 +3465,16 @@ function syncEditorChrome(){
   $('ed-infoline').innerHTML='<span class="inkdot" style="background:'+ink.c+'"></span> '+esc(ink.n)+' · '+esc(collName(cur.coll))+(cur.tags.length?(' · '+esc(cur.tags.join(', '))):'');
   $('ed-dates').textContent='begun '+fmtDate(cur.c);
 }
-let wcMode=0,wcRaf=false;
+let wcMode=0,wcRaf=false,wcCache={len:-1,n:0};
+/* long sheets: recounting every word on every keystroke made typing lag, so their total
+   refreshes when the sheet saves (a moment after you pause) */
+function totalWords(v){
+  if(v.length<60000)return words(v);
+  if(wcCache.len!==v.length&&wcCache.len<0)wcCache={len:v.length,n:words(v)};
+  return wcCache.n;
+}
 function updateWC(){
-  const ta=$('ed-body'), total=words(ta.value);
+  const ta=$('ed-body'), total=totalWords(ta.value);
   const s=ta.selectionStart,e=ta.selectionEnd;
   if(document.activeElement===ta&&e>s){
     $('ed-wc').textContent=words(ta.value.slice(s,e))+' of '+total+' words';
@@ -3480,6 +3501,7 @@ async function flushSave(){
   if(!cur||!dirty)return; dirty=false;
   const b=$('ed-body').value;
   cur.t=$('ed-title').value.trim(); cur.u=Date.now(); cur.w=words(b); cur.ex=excerpt(b);
+  wcCache={len:b.length,n:cur.w};
   bodyCache.set(cur.id,b);
   await store.set(KEY+':body:'+cur.id,b); saveIdx();
   try{const r=JSON.parse(localStorage.getItem('scr-rescue')||'null');if(r&&r.id===cur.id&&r.b===b)localStorage.removeItem('scr-rescue');}catch(e){}
@@ -3509,7 +3531,7 @@ $('ed-title').addEventListener('input',()=>{
 $('ed-body').addEventListener('scroll',()=>{if(cur){cur.sp=$('ed-body').scrollTop;queueIdx();}$('edink').scrollTop=$('ed-body').scrollTop;});
 $('ed-read').addEventListener('scroll',()=>{if(cur){cur.rp=$('ed-read').scrollTop;queueIdx();}});
 $('ed-back').onclick=async()=>{
-  if(pen)endPen();
+  if(pen){if(pen.strokes.length&&!pen.editId){const ok=await ask({title:'Leave without saving?',msg:'The drawing will be thrown away.',ok:'Leave'});if(!ok)return;}endPen();}
   await flushSave();
   await checkRename();
   if(navStack.length){
@@ -4966,7 +4988,7 @@ async function pulpNote(id){
   const n=D.notes.find(x=>x.id===id); if(!n)return false;
   const y=await ask({title:'♻ Pulp this sheet?',msg:'"'+(n.t||'Untitled sheet')+'" goes back to the vat to become fresh paper. Its words cannot be recovered once pulped. This deletes it for good.',ok:'Pulp it',danger:true});
   if(!y)return false;
-  for(const p of (n.plates||[])){await store.del(KEY+':plate:'+id+':'+p.id);plateCache.delete(id+':'+p.id);}
+  for(const p of (n.plates||[])){await store.del(KEY+':plate:'+id+':'+p.id);if(p.draw)await store.del(KEY+':draw:'+id+':'+p.id);plateCache.delete(id+':'+p.id);}
   D.notes=D.notes.filter(x=>x.id!==id);bodyCache.delete(id);
   await store.del(KEY+':body:'+id);saveIdx();
   toast('Sheet returned to the vat ♻');
@@ -4975,7 +4997,7 @@ async function pulpNote(id){
 $('dt-delete').onclick=async()=>{
   const ok=await pulpNote(cur.id);
   if(!ok)return;
-  closeOv('ov-details');$('editor').classList.remove('show');cur=null;renderList();
+  closeOv('ov-details');$('editor').classList.remove('show');cur=null;navStack=[];renderList();
 };
 
 /* ===== Plates manager ===== */
@@ -5225,49 +5247,66 @@ async function importEpub(f){
     parsed=await parseEpub(zip,f.name.replace(/\.epub$/i,''));
   }catch(e){toast('The vat could not take "'+f.name+'" — is it a healthy .epub?');return 0;}
   if(!parsed.chapters.length){toast('"'+f.name+'" had no readable chapters');return 0;}
-  const nid=uid();
-  let body='',runs=[],hls=[],plates=[],chN=0;
-  for(let i=0;i<parsed.chapters.length;i++){
-    toast('At the vat: "'+parsed.title.slice(0,24)+'" — '+(i+1)+' / '+parsed.chapters.length);
-    const ch=parsed.chapters[i];
-    let html;
-    try{html=await epubInlineImages(zip,ch.path,ch.html);}catch(e){html=ch.html;}
-    const conv=htmlToSheet(html,'');
-    const plain=conv.text.replace(/\[(?:plate|image):[a-z0-9]+\]/g,'').trim();
-    const hasPics=(conv.plates&&conv.plates.length);
-    if(plain.length<40&&!hasPics)continue;   // truly empty pages only
-    chN++;
-    const title=(conv.title&&conv.title.trim().length&&conv.title.length<120)?conv.title.trim():('Chapter '+chN);
-    const head='# '+title+'\n\n';
-    const base=body.length+head.length;
-    for(const r of conv.runs)runs.push({i:r.i+base,k:r.k});
-    for(const h of conv.hls)hls.push({s:h.s+base,e:h.e+base,k:h.k});
-    for(const p of (conv.plates||[]))plates.push(p);
-    body+=head+conv.text+'\n\n';
+  /* each chapter becomes its own sheet, gathered in a collection named after the book.
+     (One sheet holding a whole book was too heavy to open or type in on a phone.) */
+  const book=parsed.title.slice(0,120);
+  const chs=[];
+  const tk=window.busy?busy('At the vat: "'+book.slice(0,24)+'"…'):0;
+  try{
+    for(let i=0;i<parsed.chapters.length;i++){
+      if(window.busy)busy('At the vat: "'+book.slice(0,24)+'" — chapter '+(i+1)+' / '+parsed.chapters.length);
+      await new Promise(r=>setTimeout(r,0));  /* let the screen breathe between chapters */
+      const ch=parsed.chapters[i];
+      let html;
+      try{html=await epubInlineImages(zip,ch.path,ch.html);}catch(e){html=ch.html;}
+      const conv=htmlToSheet(html,'');
+      const plain=conv.text.replace(/\[(?:plate|image):[a-z0-9]+\]/g,'').trim();
+      const hasPics=(conv.plates&&conv.plates.length);
+      if(plain.length<40&&!hasPics)continue;   // truly empty pages only
+      const title=(conv.title&&conv.title.trim().length&&conv.title.length<120)?conv.title.trim():('Chapter '+(chs.length+1));
+      chs.push({title,text:conv.text,runs:conv.runs,hls:conv.hls,plates:conv.plates||[]});
+    }
+  }finally{if(window.unbusy)unbusy(tk);}
+  if(!chs.length){toast('"'+book+'" had no readable chapters');return 0;}
+  /* titles must be unique, so [[links]] between chapters always find the right one */
+  const taken=new Set(D.notes.map(n=>(n.t||'').trim().toLowerCase()));
+  for(const c of chs){
+    let t=c.title;
+    if(taken.has(t.toLowerCase()))t=book+' — '+c.title;
+    for(let k=2;taken.has(t.toLowerCase());k++)t=book+' — '+c.title+' ('+k+')';
+    taken.add(t.toLowerCase());c.title=t;
   }
-  if(!chN){toast('"'+parsed.title+'" had no readable chapters');return 0;}
-  body=body.replace(/\n+$/,'');
   if(parsed.cover){
-    /* the cover goes first: on the first page, and on the sheet's picture tile */
-    const pid='cv'+Math.random().toString(36).slice(2,8);
-    const head='[image:'+pid+']\n\n';
-    runs=runs.map(r=>({i:r.i+head.length,k:r.k}));
-    hls=hls.map(h=>({s:h.s+head.length,e:h.e+head.length,k:h.k}));
-    body=head+body;
-    plates.unshift({id:pid,url:parsed.cover});
+    /* the cover goes first: on the first chapter's page, and on its picture tile */
+    const c=chs[0],pid='cv'+Math.random().toString(36).slice(2,8),head='[image:'+pid+']\n\n';
+    c.runs=c.runs.map(r=>({i:r.i+head.length,k:r.k}));
+    c.hls=c.hls.map(h=>({s:h.s+head.length,e:h.e+head.length,k:h.k}));
+    c.text=head+c.text;c.plates.unshift({id:pid,url:parsed.cover});
   }
-  const n={id:nid,t:parsed.title.slice(0,120),coll:(activeColl!=='all'&&activeColl!=='loose')?activeColl:'',tags:[],
-    ink:D.set.ink||'deepsapphire',pin:0,c:Date.now(),u:Date.now(),
-    w:words(body),ex:excerpt(body),sp:0,rp:0,rm:1,
-    pp:Object.assign({},D.set.pp||DEF_PP),fs:D.set.fs,hand:D.set.hand,
-    runs:runs,hls:hls,plates:plates.map(p=>({id:p.id}))};
-  D.notes.push(n);bodyCache.set(nid,body);
-  await store.set(KEY+':body:'+nid,body);
-  for(const p of plates){await store.set(KEY+':plate:'+nid+':'+p.id,p.url);plateCache.set(nid+':'+p.id,p.url);}
+  const coll={id:uid(),name:book,ic:'📖'};D.colls.push(coll);
+  const now=Date.now();
+  for(let i=0;i<chs.length;i++){
+    const c=chs[i];
+    /* a quiet way on to the next and previous chapter, at the foot of each */
+    const nav=[];
+    if(i>0)nav.push('[['+chs[i-1].title+'|‹ '+chs[i-1].title+']]');
+    if(i<chs.length-1)nav.push('[['+chs[i+1].title+'|'+chs[i+1].title+' ›]]');
+    const body=c.text.replace(/\n+$/,'')+(nav.length?'\n\n---\n\n'+nav.join(' · '):'');
+    const n={id:uid(),t:c.title,coll:coll.id,tags:[],
+      ink:D.set.ink||'deepsapphire',pin:0,c:now,u:now-i,  /* chapter 1 sorts first */
+      w:words(body),ex:excerpt(body),sp:0,rp:0,rm:1,
+      pp:Object.assign({},D.set.pp||DEF_PP),fs:D.set.fs,hand:D.set.hand,
+      runs:c.runs,hls:c.hls,plates:c.plates.map(p=>({id:p.id}))};
+    D.notes.push(n);bodyCache.set(n.id,body);
+    await store.set(KEY+':body:'+n.id,body);
+    for(const p of c.plates){await store.set(KEY+':plate:'+n.id+':'+p.id,p.url);plateCache.set(n.id+':'+p.id,p.url);}
+  }
+  activeColl=coll.id;renderChips();
   saveIdx();
-  toast('"'+parsed.title.slice(0,32)+'" pressed onto one sheet — '+chN+' chapters as Threads 📖');
-  return 1;
+  epubMsg='"'+book.slice(0,32)+'" pressed into '+chs.length+' sheets — one for each chapter, in its own collection 📖';
+  return chs.length;
 }
+let epubMsg='';
 $('im-md').onclick=()=>$('im-mdfile').click();
 $('im-mdfile').addEventListener('change',async e=>{
   const files=[...e.target.files]; e.target.value='';
@@ -5301,7 +5340,8 @@ async function importSheetFiles(files){
     }catch(err){console.error(err);toast('Could not read “'+f.name+'”');await new Promise(r=>setTimeout(r,1400));}
   }
   saveIdx();renderList();
-  if(count)toast('Wove '+count+' sheet'+(count===1?'':'s')+' in ✨');
+  if(count)toast(epubMsg&&files.length===1?epubMsg:'Wove '+count+' sheet'+(count===1?'':'s')+' in ✨');
+  epubMsg='';
 }
 
 /* ===== Sync through the user's own Google Drive (a hidden app folder) ===== */
@@ -5449,7 +5489,7 @@ async function syncSheets(api,report){
     bodyCache.set(id,b);await store.set(KEY+':body:'+id,b);
     out.push(r);pulled++;if(cur&&cur.id===id)openChanged=true;
   }
-  D.notes=out;
+  D.notes=out.map(normNote);
   for(const c of (R.colls||[]))if(!D.colls.find(x=>x.id===c.id))D.colls.push(c);
   /* images on sheets, and fonts: each travels once as its own little file */
   report('Moving images and fonts…');
@@ -6284,6 +6324,7 @@ async function restoreSheets(j,mode){
     await store.set(KEY+':font:'+u.id,j.fonts[u.id]);D.fonts.push(u);ensureFont(u.id);
   }
   for(const n of (j.idx.notes||[])){
+    if(!n||!n.id)continue;normNote(n);
     const ex=D.notes.find(x=>x.id===n.id);
     if(!ex){D.notes.push(n);added++;}
     else if(replace||n.u>ex.u){if(replace)Object.keys(ex).forEach(k=>{if(!(k in n))delete ex[k];});Object.assign(ex,n);updated++;}
@@ -6296,7 +6337,7 @@ async function restoreSheets(j,mode){
   if(replace){
     const keep=new Set((j.idx.notes||[]).map(n=>n.id));
     for(const n of D.notes.filter(x=>!keep.has(x.id))){
-      for(const p of (n.plates||[])){await store.del(KEY+':plate:'+n.id+':'+p.id);plateCache.delete(n.id+':'+p.id);}
+      for(const p of (n.plates||[])){await store.del(KEY+':plate:'+n.id+':'+p.id);if(p.draw)await store.del(KEY+':draw:'+n.id+':'+p.id);plateCache.delete(n.id+':'+p.id);}
       bodyCache.delete(n.id);await store.del(KEY+':body:'+n.id);removed++;
     }
     D.notes=D.notes.filter(x=>keep.has(x.id));
@@ -6818,6 +6859,8 @@ async function makeCover(id){
     bmp.close();
   }catch(err){scrWarn('making a book cover',err);}
 }
+/* a half-finished import leaves nothing behind */
+async function dropPages(id,n){for(let i=0;i<n;i++){await store.del('page:'+id+':'+i);await store.del('text:'+id+':'+i);}await store.del('cover:'+id);await store.del('fulltext:'+id);}
 function shelve(id,title,total,extra){
   BOOKS.unshift(Object.assign({id:id,title:title,pages:total,last:-1,added:Date.now(),rtl:!!SET.rtl},extra||{}));
   saveBooks();
@@ -6837,27 +6880,19 @@ function ensurePdfjs(){
   });
   return pdfLibP;
 }
-let importBusy=0;
+let importBusy=0,pdfPartial=null;
 async function importPdf(f){
+  pdfPartial=null;
   if(!HOSTED){toast('The chest cannot open in a file preview — host the app first 🕸️');return;}
   const btn=$('btn-add');
+  let pdf=null;
   try{
     btn.disabled=true;btn.textContent='📚 Reading PDF…';
     const bk=window.busy?busy('Opening “'+f.name.replace(/\.pdf$/i,'').slice(0,28)+'”…'):0;
     importBusy=bk;
     await ensurePdfjs();
     let buf=await f.arrayBuffer();
-    try{ // if it's a filled form, press the answers flat before photographing (locked files are left as they are)
-      await ensurePdfLib();
-      const pl=await PDFLib.PDFDocument.load(buf.slice(0));
-      const did=await flattenSmart(pl);
-      if(did){
-        const flatBytes=await pl.save();
-        buf=flatBytes.buffer.slice(flatBytes.byteOffset,flatBytes.byteOffset+flatBytes.byteLength);
-        if(did==='stamped')toast('Form answers pressed in by hand — double-check them');
-      }
-    }catch(e){scrWarn('flattening a PDF form',e);}
-    let pdf=null,password='',locked=false;
+    let password='',locked=false;
     for(let tries=0;tries<4&&!pdf;tries++){
       try{pdf=await pdfjsLib.getDocument({data:buf.slice(0),password:password||undefined}).promise;}
       catch(err){
@@ -6870,7 +6905,26 @@ async function importPdf(f){
       }
     }
     if(!pdf)throw new Error('password');
-    const id=uid(), total=pdf.numPages;
+    /* if it's a filled form, press the answers flat before photographing (locked files are left as they are).
+       Only forms pay for this: re-reading a whole big PDF a second time is what made large imports stall. */
+    let hasForm=false;
+    if(!locked){try{const fo=await pdf.getFieldObjects();hasForm=!!(fo&&Object.keys(fo).length);}catch(e){}}
+    if(hasForm){
+      try{
+        await ensurePdfLib();
+        const pl=await PDFLib.PDFDocument.load(buf.slice(0));
+        const did=await flattenSmart(pl);
+        if(did){
+          const flatBytes=await pl.save();
+          const flat=flatBytes.buffer.slice(flatBytes.byteOffset,flatBytes.byteOffset+flatBytes.byteLength);
+          const again=await pdfjsLib.getDocument({data:flat}).promise;
+          pdf.destroy();pdf=again;
+          if(did==='stamped')toast('Form answers pressed in by hand — double-check them');
+        }
+      }catch(e){scrWarn('flattening a PDF form',e);}
+    }
+    buf=null;  /* the reader keeps its own copy; let this one go */
+    const id=uid(), total=pdf.numPages;pdfPartial={id:id,n:total};
     const fullText=[];let anyText=false;
     for(let i=1;i<=total;i++){
       const page=await pdf.getPage(i);
@@ -6896,6 +6950,7 @@ async function importPdf(f){
       c.width=Math.round(vp.width);c.height=Math.round(vp.height);
       await page.render({canvasContext:c.getContext('2d'),viewport:vp,annotationMode:pdfjsLib.AnnotationMode.ENABLE}).promise;
       const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
+      c.width=c.height=0;page.cleanup();  /* free each page as soon as it's saved */
       if(!blob)throw new Error('render');
       const ok=await store.set('page:'+id+':'+(i-1),blob);
       if(!ok)throw new Error('store');
@@ -6905,12 +6960,15 @@ async function importPdf(f){
     }
     await makeCover(id);
     if(anyText)await store.set('fulltext:'+id,fullText);
+    pdfPartial=null;
     shelve(id,f.name.replace(/\.pdf$/i,''),total,{text:anyText,locked:locked});
     if(locked)setTimeout(()=>toast('Unlocked and shelved — downloading it as a .pdf gives you a copy without the password'),2600);
   }catch(err){
+    if(pdfPartial){const pp=pdfPartial;pdfPartial=null;dropPages(pp.id,pp.n);}
     if(err&&err.message==='cancelled')toast('Left “'+f.name+'” off the shelf');
     else toast('Could not read "'+f.name+'" — is it a normal PDF?');
   }finally{
+    if(pdf)try{pdf.destroy();}catch(e){}
     lbl(btn,'books','📚','Add books');btn.disabled=false;
     if(window.unbusy)unbusy(importBusy);
   }
@@ -6968,7 +7026,7 @@ $('bind-go').onclick=async()=>{
     const id=uid(), total=bindItems.length;
     for(let i=0;i<total;i++){
       const ok=await store.set('page:'+id+':'+i,bindItems[i].file);
-      if(!ok)throw new Error('store');
+      if(!ok){await dropPages(id,i);throw new Error('store');}
     }
     await makeCover(id);
     shelve(id,title,total);
@@ -7388,7 +7446,7 @@ async function importCbz(f){
     for(let i=0;i<total;i++){
       const blob=await zip.files[names[i]].async('blob');
       const ok=await store.set('page:'+id+':'+i,blob);
-      if(!ok)throw new Error('store failed');
+      if(!ok){await dropPages(id,i);throw new Error('store failed');}
       if(i%5===0||i===total-1){btn.textContent='📚 '+Math.round(((i+1)/total)*100)+'%';}
     }
     await makeCover(id);
@@ -7420,8 +7478,9 @@ let pageItems=null,searchQ='',textSel=false;
 async function paintText(){
   const L=$('tlayer');L.innerHTML='';pageItems=null;
   if(!curBook||!curBook.text)return;
-  const items=await store.get('text:'+curBook.id+':'+curPage);
-  if(!items||!curBook)return;
+  const bk=curBook,pgN=curPage;
+  const items=await store.get('text:'+bk.id+':'+pgN);
+  if(!items||curBook!==bk||curPage!==pgN)return;
   pageItems=items;
   const img=$('r-img');
   if(!img.complete||!img.naturalWidth){img.onload=()=>{img.onload=null;placeText();};}
@@ -7550,11 +7609,14 @@ $('find-close').onclick=()=>$('ov-find').classList.remove('show');
 $('ov-find').addEventListener('click',e=>{if(e.target===$('ov-find'))$('ov-find').classList.remove('show');});
 $('rm-find').onclick=()=>{closeRMenu();$('ov-find').classList.add('show');setTimeout(()=>$('find-q').focus(),80);if($('find-q').value)runBookFind();};
 $('rm-select').onclick=()=>{closeRMenu();setSelectMode(true);};
+let pageSeq=0;
 async function showPage(n){
   if(!curBook)return;
   n=Math.max(0,Math.min(n,curBook.pages-1));
   curPage=n;
-  const blob=await store.get('page:'+curBook.id+':'+n);
+  const seq=++pageSeq,bk=curBook;
+  const blob=await store.get('page:'+bk.id+':'+n);
+  if(seq!==pageSeq||curBook!==bk)return;  /* a newer turn (or closing the book) won */
   if(!blob){toast('That page is missing from the chest');return;}
   if(pageURL)URL.revokeObjectURL(pageURL);
   pageURL=URL.createObjectURL(blob);
@@ -7618,6 +7680,7 @@ $('rm-fith').onclick=()=>{setFit(false);closeRMenu();};
 $('rm-fitw').onclick=()=>{setFit(true);closeRMenu();};
 document.addEventListener('keydown',e=>{
   if(!$('reader').classList.contains('show'))return;
+  if(document.querySelector('.overlay.show')||/INPUT|TEXTAREA|SELECT/.test((e.target||{}).tagName||''))return;
   if(e.key===' '){e.preventDefault();pgFwd();}
   else if(e.key==='ArrowRight'){e.preventDefault();isRtl()?pgBack():pgFwd();}
   else if(e.key==='ArrowLeft'){e.preventDefault();isRtl()?pgFwd():pgBack();}
