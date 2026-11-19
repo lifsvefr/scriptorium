@@ -6858,23 +6858,14 @@ async function importPdf(f){
   pdfPartial=null;
   if(!HOSTED){toast('The chest cannot open in a file preview — host the app first 🕸️');return;}
   const btn=$('btn-add');
+  let pdf=null;
   try{
     btn.disabled=true;btn.textContent='📚 Reading PDF…';
     const bk=window.busy?busy('Opening “'+f.name.replace(/\.pdf$/i,'').slice(0,28)+'”…'):0;
     importBusy=bk;
     await ensurePdfjs();
     let buf=await f.arrayBuffer();
-    try{ // if it's a filled form, press the answers flat before photographing (locked files are left as they are)
-      await ensurePdfLib();
-      const pl=await PDFLib.PDFDocument.load(buf.slice(0));
-      const did=await flattenSmart(pl);
-      if(did){
-        const flatBytes=await pl.save();
-        buf=flatBytes.buffer.slice(flatBytes.byteOffset,flatBytes.byteOffset+flatBytes.byteLength);
-        if(did==='stamped')toast('Form answers pressed in by hand — double-check them');
-      }
-    }catch(e){scrWarn('flattening a PDF form',e);}
-    let pdf=null,password='',locked=false;
+    let password='',locked=false;
     for(let tries=0;tries<4&&!pdf;tries++){
       try{pdf=await pdfjsLib.getDocument({data:buf.slice(0),password:password||undefined}).promise;}
       catch(err){
@@ -6887,6 +6878,25 @@ async function importPdf(f){
       }
     }
     if(!pdf)throw new Error('password');
+    /* if it's a filled form, press the answers flat before photographing (locked files are left as they are).
+       Only forms pay for this: re-reading a whole big PDF a second time is what made large imports stall. */
+    let hasForm=false;
+    if(!locked){try{const fo=await pdf.getFieldObjects();hasForm=!!(fo&&Object.keys(fo).length);}catch(e){}}
+    if(hasForm){
+      try{
+        await ensurePdfLib();
+        const pl=await PDFLib.PDFDocument.load(buf.slice(0));
+        const did=await flattenSmart(pl);
+        if(did){
+          const flatBytes=await pl.save();
+          const flat=flatBytes.buffer.slice(flatBytes.byteOffset,flatBytes.byteOffset+flatBytes.byteLength);
+          const again=await pdfjsLib.getDocument({data:flat}).promise;
+          pdf.destroy();pdf=again;
+          if(did==='stamped')toast('Form answers pressed in by hand — double-check them');
+        }
+      }catch(e){scrWarn('flattening a PDF form',e);}
+    }
+    buf=null;  /* the reader keeps its own copy; let this one go */
     const id=uid(), total=pdf.numPages;pdfPartial={id:id,n:total};
     const fullText=[];let anyText=false;
     for(let i=1;i<=total;i++){
@@ -6913,6 +6923,7 @@ async function importPdf(f){
       c.width=Math.round(vp.width);c.height=Math.round(vp.height);
       await page.render({canvasContext:c.getContext('2d'),viewport:vp,annotationMode:pdfjsLib.AnnotationMode.ENABLE}).promise;
       const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
+      c.width=c.height=0;page.cleanup();  /* free each page as soon as it's saved */
       if(!blob)throw new Error('render');
       const ok=await store.set('page:'+id+':'+(i-1),blob);
       if(!ok)throw new Error('store');
@@ -6930,6 +6941,7 @@ async function importPdf(f){
     if(err&&err.message==='cancelled')toast('Left “'+f.name+'” off the shelf');
     else toast('Could not read "'+f.name+'" — is it a normal PDF?');
   }finally{
+    if(pdf)try{pdf.destroy();}catch(e){}
     lbl(btn,'books','📚','Add books');btn.disabled=false;
     if(window.unbusy)unbusy(importBusy);
   }
